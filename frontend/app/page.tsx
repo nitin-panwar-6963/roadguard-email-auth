@@ -20,19 +20,11 @@ export default function DashboardPage() {
   const { status, user, signOut } = useAuth();
   const router = useRouter();
 
-  // ---- Auth guard -------------------------------------------------------
-  // next.config.ts uses a static export, so there is no Next.js middleware
-  // to gate this route server-side. This client-side check is a UX layer;
-  // the real trusted-layer restriction lives in Supabase itself -- see
-  // supabase/sql/restrict_email_domain.sql.
   useEffect(() => {
     if (status === "signed-out" || status === "unauthorized-domain") {
       router.replace("/login");
     }
   }, [status, router]);
-
-  // ---- Everything below this line is the existing RoadGuard application --
-  // ---- state/handlers, preserved exactly, just reorganized in the JSX. ---
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -284,7 +276,6 @@ export default function DashboardPage() {
     router.replace("/login");
   };
 
-  // ---- Render guard: don't flash the dashboard before auth resolves -----
   if (status !== "authorized") {
     return <div className="login-loading">Loading RoadGuard AI...</div>;
   }
@@ -394,12 +385,6 @@ export default function DashboardPage() {
   );
 }
 
-/* ============================================================
-   LIVE DETECTION -- primary workspace, matches the required
-   dashboard structure: camera+logs grid, session controls,
-   estimated cost, then secondary report/session actions.
-============================================================ */
-
 function LiveDetectionView(props: {
   isStreamingDrone: boolean;
   sessionSeconds: number;
@@ -462,7 +447,6 @@ function LiveDetectionView(props: {
       </header>
 
       <div className="dashboard-grid">
-        {/* CAMERA */}
         <section className="panel camera-card">
           <div className="card-header">
             <div>
@@ -489,14 +473,13 @@ function LiveDetectionView(props: {
                     className="ip-input"
                     value={ipCamUrl}
                     onChange={(e) => setIpCamUrl(e.target.value)}
-                    placeholder="http:// 192.168.1.100:8080"
+                    placeholder="http://192.168.1.100:8080"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* SESSION CONTROLS -- Start Session / Upload Video / End Session */}
           <div className="session-controls-row">
             <button className="btn btn-primary" onClick={startDroneStream} disabled={isStreamingDrone}>
               {"\u{1F4F9}"} Start Session
@@ -511,7 +494,6 @@ function LiveDetectionView(props: {
           </div>
         </section>
 
-        {/* ACTIVE DETECTION LOGS (right column) */}
         <section className="panel detections-card">
           <div className="summary-strip">
             <div className="severity critical">
@@ -557,7 +539,11 @@ function LiveDetectionView(props: {
                         {log.width_cm}\u00D7{log.breadth_cm}\u00D7{log.depth_cm} cm
                       </span>
                     )}
-                    {isStreamingDrone ? <span>cost pending</span> : <span>\u20B9{log.cost}</span>}
+                    {isStreamingDrone ? (
+                      <span>cost pending</span>
+                    ) : (
+                      <span>₹{log.cost}</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -566,7 +552,6 @@ function LiveDetectionView(props: {
         </section>
       </div>
 
-      {/* ESTIMATED COST -- directly below session controls */}
       <section className="panel cost-card" style={{ marginTop: 16 }}>
         <div className="card-header">
           <div>
@@ -584,7 +569,7 @@ function LiveDetectionView(props: {
           </div>
         ) : historicalLogs.length > 0 ? (
           <>
-            <div className="cost-value">\u20B9{sessionCost.toLocaleString("en-IN")}</div>
+            <div className="cost-value">₹{sessionCost.toLocaleString("en-IN")}</div>
             <div className="cost-footer">
               <span>Total estimated cost -- current session</span>
               <span>{detectionCount} potholes</span>
@@ -599,7 +584,6 @@ function LiveDetectionView(props: {
         )}
       </section>
 
-      {/* LOWER PAGE ACTIONS -- Generate PDF / Email Alert (secondary) */}
       <ReportPanel reportState={reportState} sessionCost={sessionCost} detectionCount={detectionCount} isStreamingDrone={isStreamingDrone} />
 
       <section className="panel session-card" style={{ marginTop: 16 }}>
@@ -624,13 +608,6 @@ function LiveDetectionView(props: {
     </>
   );
 }
-
-/* ============================================================
-   PDF report + email-alert status. "Generate PDF" here is not a
-   new manual action: the backend already builds & auto-emails
-   the report as soon as a session ends. This panel surfaces that
-   real, existing status rather than inventing a new trigger.
-============================================================ */
 
 function ReportPanel({
   reportState,
@@ -667,7 +644,7 @@ function ReportPanel({
         <div style={{ padding: "0 16px 16px" }}>
           <div className="cost-footer" style={{ margin: "0 0 12px", border: "none" }}>
             <span>{reportState.potholeCount ?? detectionCount} potholes documented</span>
-            <span>\u20B9{(reportState.totalCost ?? sessionCost).toLocaleString("en-IN")} total</span>
+            <span>₹{(reportState.totalCost ?? sessionCost).toLocaleString("en-IN")} total</span>
           </div>
           {reportState.url ? (
             <a href={reportState.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
@@ -703,11 +680,6 @@ function ReportPanel({
   );
 }
 
-/* ============================================================
-   VIDEO UPLOADS -- dedicated view reusing the existing bulk
-   upload handler (same functionality, just its own page).
-============================================================ */
-
 function VideoUploadsView({
   handleBulkUpload,
 }: {
@@ -738,11 +710,6 @@ function VideoUploadsView({
     </>
   );
 }
-
-/* ============================================================
-   PDFs / Reports -- dedicated view showing the same report
-   status data as the Live Detection page.
-============================================================ */
 
 function ReportsView({
   reportState,
@@ -794,11 +761,6 @@ function ReportsView({
   );
 }
 
-/* ============================================================
-   HISTORY -- honest view: shows real in-memory session data,
-   flags that persistence across sessions/refreshes doesn't exist.
-============================================================ */
-
 function HistoryView({
   historicalLogs,
   isStreamingDrone,
@@ -839,7 +801,7 @@ function HistoryView({
                 </div>
                 <div className="detection-details">
                   <span className={`severity ${log.severity.toLowerCase()}`}>{log.severity}</span>
-                  {isStreamingDrone ? <span>cost pending</span> : <span>\u20B9{log.cost}</span>}
+                  {isStreamingDrone ? <span>cost pending</span> : <span>₹{log.cost}</span>}
                 </div>
               </div>
             ))}
