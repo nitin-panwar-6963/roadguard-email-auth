@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: back-nitin
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: front-nitin
+    ports:
+      - "100:100"
+    restart: unless-stopped
